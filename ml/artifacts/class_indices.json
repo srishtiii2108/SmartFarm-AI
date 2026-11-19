@@ -1,0 +1,92 @@
+{
+  "0": {
+    "raw_class": "Pepper,_bell___Bacterial_spot",
+    "display_name": "Pepper, bell - Bacterial spot",
+    "crop_category": "bell_pepper",
+    "is_healthy": false
+  },
+  "1": {
+    "raw_class": "Pepper,_bell___healthy",
+    "display_name": "Pepper, bell - healthy",
+    "crop_category": "bell_pepper",
+    "is_healthy": true
+  },
+  "2": {
+    "raw_class": "Potato___Early_blight",
+    "display_name": "Potato - Early blight",
+    "crop_category": "potato",
+    "is_healthy": false
+  },
+  "3": {
+    "raw_class": "Potato___Late_blight",
+    "display_name": "Potato - Late blight",
+    "crop_category": "potato",
+    "is_healthy": false
+  },
+  "4": {
+    "raw_class": "Potato___healthy",
+    "display_name": "Potato - healthy",
+    "crop_category": "potato",
+    "is_healthy": true
+  },
+  "5": {
+    "raw_class": "Tomato___Bacterial_spot",
+    "display_name": "Tomato - Bacterial spot",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "6": {
+    "raw_class": "Tomato___Early_blight",
+    "display_name": "Tomato - Early blight",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "7": {
+    "raw_class": "Tomato___Late_blight",
+    "display_name": "Tomato - Late blight",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "8": {
+    "raw_class": "Tomato___Leaf_Mold",
+    "display_name": "Tomato - Leaf Mold",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "9": {
+    "raw_class": "Tomato___Septoria_leaf_spot",
+    "display_name": "Tomato - Septoria leaf spot",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "10": {
+    "raw_class": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "display_name": "Tomato - Spider mites Two-spotted spider mite",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "11": {
+    "raw_class": "Tomato___Target_Spot",
+    "display_name": "Tomato - Target Spot",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "12": {
+    "raw_class": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "display_name": "Tomato - Tomato Yellow Leaf Curl Virus",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "13": {
+    "raw_class": "Tomato___Tomato_mosaic_virus",
+    "display_name": "Tomato - Tomato mosaic virus",
+    "crop_category": "tomato",
+    "is_healthy": false
+  },
+  "14": {
+    "raw_class": "Tomato___healthy",
+    "display_name": "Tomato - healthy",
+    "crop_category": "tomato",
+    "is_healthy": true
+  }
+}

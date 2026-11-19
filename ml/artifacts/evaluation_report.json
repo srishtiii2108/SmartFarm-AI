@@ -1,0 +1,131 @@
+{
+  "model_version": "mobilenetv2-v1.0",
+  "evaluated_at_utc": "2026-11-19T14:33:07.869511+00:00",
+  "dataset": {
+    "name": "PlantVillage (Tomato, Potato, Bell Pepper Subset)",
+    "num_classes": 15,
+    "total_images": 22787,
+    "train_images": 15950,
+    "validation_images": 3418,
+    "test_images": 3419
+  },
+  "test_metrics": {
+    "accuracy": 0.8037,
+    "macro_precision": 0.7987,
+    "macro_recall": 0.7772,
+    "macro_f1": 0.7395,
+    "weighted_precision": 0.8489,
+    "weighted_recall": 0.8037,
+    "weighted_f1": 0.7923
+  },
+  "per_class_report": {
+    "Pepper, bell - Bacterial spot": {
+      "precision": 0.9774436090225563,
+      "recall": 0.87248322147651,
+      "f1-score": 0.9219858156028369,
+      "support": 149.0
+    },
+    "Pepper, bell - healthy": {
+      "precision": 0.9642857142857143,
+      "recall": 0.972972972972973,
+      "f1-score": 0.968609865470852,
+      "support": 222.0
+    },
+    "Potato - Early blight": {
+      "precision": 1.0,
+      "recall": 0.8733333333333333,
+      "f1-score": 0.9323843416370107,
+      "support": 150.0
+    },
+    "Potato - Late blight": {
+      "precision": 0.9193548387096774,
+      "recall": 0.76,
+      "f1-score": 0.8321167883211679,
+      "support": 150.0
+    },
+    "Potato - healthy": {
+      "precision": 0.7037037037037037,
+      "recall": 0.8260869565217391,
+      "f1-score": 0.76,
+      "support": 23.0
+    },
+    "Tomato - Bacterial spot": {
+      "precision": 0.9081272084805654,
+      "recall": 0.8056426332288401,
+      "f1-score": 0.8538205980066446,
+      "support": 319.0
+    },
+    "Tomato - Early blight": {
+      "precision": 0.9333333333333333,
+      "recall": 0.09333333333333334,
+      "f1-score": 0.1696969696969697,
+      "support": 150.0
+    },
+    "Tomato - Late blight": {
+      "precision": 0.9553571428571429,
+      "recall": 0.37282229965156793,
+      "f1-score": 0.5363408521303258,
+      "support": 287.0
+    },
+    "Tomato - Leaf Mold": {
+      "precision": 0.5990338164251208,
+      "recall": 0.8671328671328671,
+      "f1-score": 0.7085714285714285,
+      "support": 143.0
+    },
+    "Tomato - Septoria leaf spot": {
+      "precision": 0.7682926829268293,
+      "recall": 0.7105263157894737,
+      "f1-score": 0.73828125,
+      "support": 266.0
+    },
+    "Tomato - Spider mites Two-spotted spider mite": {
+      "precision": 0.5919395465994962,
+      "recall": 0.9325396825396826,
+      "f1-score": 0.724191063174114,
+      "support": 252.0
+    },
+    "Tomato - Target Spot": {
+      "precision": 0.5793991416309013,
+      "recall": 0.6428571428571429,
+      "f1-score": 0.6094808126410836,
+      "support": 210.0
+    },
+    "Tomato - Tomato Yellow Leaf Curl Virus": {
+      "precision": 0.9506024096385542,
+      "recall": 0.9813432835820896,
+      "f1-score": 0.9657282741738066,
+      "support": 804.0
+    },
+    "Tomato - Tomato mosaic virus": {
+      "precision": 0.3253012048192771,
+      "recall": 0.9642857142857143,
+      "f1-score": 0.4864864864864865,
+      "support": 56.0
+    },
+    "Tomato - healthy": {
+      "precision": 0.8041237113402062,
+      "recall": 0.9831932773109243,
+      "f1-score": 0.8846880907372401,
+      "support": 238.0
+    },
+    "accuracy": 0.8037437847323778,
+    "macro avg": {
+      "precision": 0.7986865375848721,
+      "recall": 0.7772368689344127,
+      "f1-score": 0.7394921757766644,
+      "support": 3419.0
+    },
+    "weighted avg": {
+      "precision": 0.8489125299280094,
+      "recall": 0.8037437847323778,
+      "f1-score": 0.7922655085018463,
+      "support": 3419.0
+    }
+  },
+  "known_limitations": [
+    "Trained on PlantVillage studio-style images featuring single detached leaves on uniform backgrounds.",
+    "Real-world field photos with complex backgrounds, uneven lighting, shadows, or multiple overlapping infections may yield lower confidence.",
+    "Predictions serve as decision-support screening and should be confirmed by an agronomist before major crop intervention."
+  ]
+}
