@@ -17,3 +17,6 @@ scikit-learn==1.6.0
 slowapi==0.1.9
 supabase==2.11.0
 pytest==8.3.4
+bcrypt==4.2.1
+PyJWT==2.10.1
+email-validator==2.2.0
