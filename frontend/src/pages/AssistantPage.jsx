@@ -23,11 +23,12 @@ const STARTER_PROMPTS = [
 
 function extractAssistantText(payload, rawResponse) {
   const candidates = [
+    payload?.assistant_reply,
     payload?.answer,
     payload?.response,
     payload?.reply,
     payload?.assistant_response,
-    payload?.assistant_reply,
+    payload?.assistant_reply_text,
     payload?.assistant_message?.content,
     typeof payload?.assistant_message === "string" ? payload.assistant_message : null,
     payload?.message?.content,
@@ -35,9 +36,9 @@ function extractAssistantText(payload, rawResponse) {
     payload?.content,
     payload?.text,
     payload?.output,
+    rawResponse?.assistant_reply,
     rawResponse?.answer,
     rawResponse?.response,
-    rawResponse?.assistant_response,
   ];
 
   for (const item of candidates) {
@@ -45,7 +46,7 @@ function extractAssistantText(payload, rawResponse) {
       return item.trim();
     }
   }
-  return "Response received, but text field was empty. Check backend chat schema.";
+  return "Received a response, but no answer text was found.";
 }
 
 function normalizeCitations(rawCitations) {
@@ -54,24 +55,63 @@ function normalizeCitations(rawCitations) {
 
   rawCitations.forEach((cit, idx) => {
     const title =
-      cit.document_title || cit.title || cit.source || `Reference Guide #${idx + 1}`;
-    const sim =
-      typeof cit.similarity === "number"
+      cit.document_title || cit.title || cit.source_name || cit.source || `Field Guide #${idx + 1}`;
+    const rawSim =
+      typeof cit.similarity_score === "number"
+        ? cit.similarity_score
+        : typeof cit.similarity === "number"
         ? cit.similarity
         : typeof cit.score === "number"
         ? cit.score
         : null;
+    const sim = rawSim !== null ? (rawSim > 1 ? rawSim / 100 : rawSim) : null;
 
     if (!seen.has(title) || (sim !== null && (seen.get(title).similarity ?? 0) < sim)) {
       seen.set(title, {
         title,
         similarity: sim,
-        snippet: cit.chunk_text || cit.snippet || title,
+        snippet: cit.section || cit.chunk_text || cit.snippet || title,
       });
     }
   });
 
   return Array.from(seen.values());
+}
+
+function renderFormattedText(text) {
+  if (!text) return null;
+  const lines = text.split("\n");
+
+  return lines.map((line, lineIdx) => {
+    const boldParts = line.split(/(\*\*[^*]+\*\*)/g);
+    const formattedLine = boldParts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return (
+          <strong key={i} className="font-semibold text-slate-900">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      const italicParts = part.split(/(\*[^*]+\*)/g);
+      return italicParts.map((sub, j) => {
+        if (sub.startsWith("*") && sub.endsWith("*") && sub.length > 2) {
+          return (
+            <em key={`${i}-${j}`} className="italic">
+              {sub.slice(1, -1)}
+            </em>
+          );
+        }
+        return sub;
+      });
+    });
+
+    return (
+      <React.Fragment key={lineIdx}>
+        {formattedLine}
+        {lineIdx < lines.length - 1 && "\n"}
+      </React.Fragment>
+    );
+  });
 }
 
 export default function AssistantPage() {
@@ -83,7 +123,7 @@ export default function AssistantPage() {
     {
       role: "assistant",
       content:
-        "Namaste! I am your SmartFarm AI Agronomic Assistant. Ask me anything about crop diseases, integrated pest management, irrigation, or post-harvest handling—every answer is grounded in our indexed agricultural knowledge base with verifiable citations.",
+        "Namaste! I am your SmartFarm AI Crop Advisor. Ask me anything about crop diseases, pest care, watering schedules, or harvest storage—every answer is backed by our verified farming guides.",
       citations: [],
     },
   ]);
@@ -91,7 +131,7 @@ export default function AssistantPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  // Knowledge Base State
+  // Farming Guides Library State
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -125,7 +165,8 @@ export default function AssistantPage() {
   }, [messages, sending]);
 
   const sendMessage = async (promptText) => {
-    const text = (promptText ?? input).trim();
+    const rawText = typeof promptText === "string" ? promptText : input;
+    const text = rawText.trim();
     if (!text || sending) return;
 
     setError("");
@@ -135,24 +176,11 @@ export default function AssistantPage() {
 
     try {
       const requestBody = {
-        query: text,
+        message: text,
         ...(sessionId ? { session_id: sessionId } : {}),
       };
 
-      let res;
-      try {
-        res = await apiClient.post("/chat", requestBody);
-      } catch (firstErr) {
-        if (firstErr.message && firstErr.message.toLowerCase().includes("invalid request")) {
-          res = await apiClient.post("/chat", {
-            message: text,
-            ...(sessionId ? { session_id: sessionId } : {}),
-          });
-        } else {
-          throw firstErr;
-        }
-      }
-
+      const res = await apiClient.post("/chat", requestBody);
       const raw = res.data;
       const payload = raw?.data || raw;
 
@@ -189,7 +217,7 @@ export default function AssistantPage() {
       {
         role: "assistant",
         content:
-          "Started a fresh consultation session. Ask your agronomic question below to retrieve grounded recommendations.",
+          "Started a new crop advice chat. Ask your question below to get guidance from our verified farming guides.",
         citations: [],
       },
     ]);
@@ -209,7 +237,7 @@ export default function AssistantPage() {
       const res = await apiClient.post("/knowledge/ingest", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setUploadNotice(res.data?.message || `Indexed "${file.name}" into pgvector knowledge base.`);
+      setUploadNotice(res.data?.message || `Added "${file.name}" to your farming guides.`);
       await fetchDocuments();
     } catch (err) {
       setError(err.message);
@@ -222,16 +250,16 @@ export default function AssistantPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI Farming Assistant (Cohere RAG)"
-        subtitle="Citation-backed agricultural guidance powered by Cohere embed-english-v3.0, pgvector & command-a-03-2025"
+        title="Crop Advisory Assistant"
+        subtitle="Practical farming guidance on plant care, disease prevention, watering, and storage—backed by trusted guides"
         action={
           <button
             type="button"
             onClick={handleNewChat}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:border-forest-300 hover:bg-forest-50/50 hover:text-forest-900"
           >
             <Plus className="h-3.5 w-3.5" />
-            New Session
+            New Chat
           </button>
         }
       />
@@ -255,7 +283,7 @@ export default function AssistantPage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Column: RAG Chat Window */}
+        {/* Left Column: Advisor Chat Window */}
         <div className="flex h-[640px] flex-col rounded-2xl border border-forest-100 bg-white shadow-xs lg:col-span-8">
           {/* Messages Scroll Area */}
           <div className="flex-1 space-y-4 overflow-y-auto p-5">
@@ -267,7 +295,7 @@ export default function AssistantPage() {
                   className={`flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}
                 >
                   <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-2xs ${
                       isUser ? "bg-slate-800 text-white" : "bg-forest-800 text-white"
                     }`}
                   >
@@ -277,29 +305,31 @@ export default function AssistantPage() {
                   <div
                     className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       isUser
-                        ? "bg-forest-800 text-white"
-                        : "border border-slate-100 bg-slate-50/90 text-slate-800"
+                        ? "bg-forest-800 text-white shadow-2xs"
+                        : "border border-slate-200/80 bg-slate-50/90 text-slate-800"
                     }`}
                   >
-                    <p className="whitespace-pre-line">{msg.content}</p>
+                    <p className="whitespace-pre-line">
+                      {isUser ? msg.content : renderFormattedText(msg.content)}
+                    </p>
 
-                    {/* Grounded RAG Citations */}
+                    {/* Grounded Reference Sources */}
                     {!isUser && msg.citations && msg.citations.length > 0 && (
                       <div className="mt-3 border-t border-slate-200/80 pt-2.5">
                         <span className="block text-[11px] font-bold uppercase tracking-wider text-forest-800">
-                          Verified Knowledge Sources ({msg.citations.length})
+                          Reference Guides Used ({msg.citations.length})
                         </span>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {msg.citations.map((cit, cIdx) => {
                             const sim =
                               typeof cit.similarity === "number"
-                                ? ` (${(cit.similarity * 100).toFixed(0)}% match)`
+                                ? ` (${Math.round(cit.similarity * 100)}% match)`
                                 : "";
                             return (
                               <span
                                 key={cIdx}
                                 title={cit.snippet}
-                                className="inline-flex items-center gap-1 rounded-lg border border-forest-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-forest-900"
+                                className="inline-flex items-center gap-1 rounded-lg border border-forest-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-forest-900 shadow-2xs"
                               >
                                 <FileText className="h-3 w-3 text-forest-700" />
                                 {cit.title}
@@ -320,9 +350,9 @@ export default function AssistantPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-forest-800 text-white">
                   <Bot className="h-4 w-4" />
                 </div>
-                <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
                   <Loader2 className="h-4 w-4 animate-spin text-forest-700" />
-                  Searching pgvector chunks & synthesizing cited response...
+                  Checking farming guides and preparing your answer...
                 </div>
               </div>
             )}
@@ -331,10 +361,10 @@ export default function AssistantPage() {
 
           {/* Starter Prompt Chips */}
           {messages.length <= 2 && (
-            <div className="border-t border-slate-100 bg-forest-50/30 px-4 py-2.5">
-              <p className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+            <div className="border-t border-slate-100 bg-forest-50/40 px-4 py-3">
+              <p className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-slate-600">
                 <Sparkles className="h-3 w-3 text-forest-700" />
-                Suggested Agronomic Questions
+                Common Questions You Can Ask
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {STARTER_PROMPTS.map((q) => (
@@ -342,7 +372,7 @@ export default function AssistantPage() {
                     key={q}
                     type="button"
                     onClick={() => sendMessage(q)}
-                    className="rounded-xl border border-forest-200 bg-white px-2.5 py-1 text-left text-[11px] font-medium text-slate-700 transition hover:border-forest-500 hover:bg-forest-50"
+                    className="rounded-xl border border-forest-200 bg-white px-2.5 py-1 text-left text-[11px] font-medium text-slate-700 transition hover:border-forest-500 hover:bg-forest-50 hover:text-forest-900"
                   >
                     {q}
                   </button>
@@ -363,8 +393,8 @@ export default function AssistantPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about crop diseases, organic/chemical sprays, soil nutrition, or weather care..."
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:border-forest-600 focus:outline-none"
+              placeholder="Ask about crop diseases, sprays, soil care, watering, or storage..."
+              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-forest-600 focus:outline-none"
             />
             <button
               type="submit"
@@ -377,20 +407,21 @@ export default function AssistantPage() {
           </form>
         </div>
 
-        {/* Right Column: Indexed RAG Knowledge Base */}
+        {/* Right Column: Farming Guides Library */}
         <div className="flex flex-col justify-between rounded-2xl border border-forest-100 bg-white p-5 shadow-xs lg:col-span-4">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-forest-700" />
-                <h2 className="text-base font-bold text-slate-900">Knowledge Base</h2>
+                <h2 className="text-base font-bold text-slate-900">Farming Guides</h2>
               </div>
               <span className="rounded-full bg-forest-50 px-2.5 py-0.5 text-xs font-bold text-forest-800">
-                {documents.length} Docs
+                {documents.length} {documents.length === 1 ? "Guide" : "Guides"}
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Only documents indexed here are used by the RAG assistant to prevent hallucinations.
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Answers are pulled strictly from these trusted guides so you get reliable, accurate
+              advice.
             </p>
 
             {/* Upload New Guide Button */}
@@ -411,12 +442,12 @@ export default function AssistantPage() {
                 {uploadingDoc ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Chunking & Embedding...
+                    Adding guide to library...
                   </>
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Ingest Agricultural Guide (.md, .txt, .pdf)
+                    Add Farming Guide (.md, .txt, .pdf)
                   </>
                 )}
               </button>
@@ -425,25 +456,27 @@ export default function AssistantPage() {
             {/* Indexed Documents List */}
             <div className="mt-4 max-h-[380px] space-y-2.5 overflow-y-auto pr-1">
               {loadingDocs ? (
-                <p className="py-6 text-center text-xs text-slate-400">Loading indexed guides...</p>
+                <p className="py-6 text-center text-xs text-slate-400">Loading farming guides...</p>
               ) : documents.length === 0 ? (
                 <p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500">
-                  No documents indexed yet. Upload a markdown, text, or PDF farming guide above.
+                  No farming guides added yet. Upload a markdown, text, or PDF guide above.
                 </p>
               ) : (
                 documents.map((doc) => (
                   <div
                     key={doc.id || doc.title}
-                    className="rounded-xl border border-slate-100 bg-slate-50/70 p-3"
+                    className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 transition hover:border-forest-200 hover:bg-forest-50/30"
                   >
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-2.5">
                       <FileText className="mt-0.5 h-4 w-4 shrink-0 text-forest-700" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-slate-900">
                           {doc.title || doc.filename}
                         </p>
                         <p className="mt-0.5 text-[11px] text-slate-500">
-                          {doc.chunk_count ? `${doc.chunk_count} vector chunks` : "Indexed in pgvector"}
+                          {doc.total_chunks || doc.chunk_count
+                            ? `${doc.total_chunks || doc.chunk_count} sections indexed`
+                            : "Ready for crop advice"}
                         </p>
                       </div>
                     </div>
@@ -453,9 +486,9 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500">
-            <strong>Strict Grounding Policy:</strong> Cosine similarity threshold set at{" "}
-            <span className="font-semibold text-slate-700">0.35</span>. Out-of-scope queries are safely declined.
+          <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-600">
+            <strong className="text-slate-800">Verified Advice Only:</strong> If a topic is not
+            covered in your farming guides, the assistant lets you know instead of guessing.
           </div>
         </div>
       </div>

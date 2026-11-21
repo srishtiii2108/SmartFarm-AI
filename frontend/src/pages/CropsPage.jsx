@@ -20,10 +20,25 @@ const CATEGORY_OPTIONS = [
   { value: "other", label: "Other Crop" },
 ];
 
+const STATUS_TABS = [
+  { value: "all", label: "All Plots" },
+  { value: "active", label: "Active" },
+  { value: "harvested", label: "Harvested" },
+  { value: "diseased", label: "Needs Care" },
+  { value: "archived", label: "Archived" },
+];
+
+const STATUS_LABELS = {
+  active: "Active",
+  harvested: "Harvested",
+  diseased: "Needs Care",
+  archived: "Archived",
+};
+
 const STATUS_STYLES = {
   active: "bg-emerald-50 text-emerald-800 border-emerald-200",
   harvested: "bg-sky-50 text-sky-800 border-sky-200",
-  diseased: "bg-red-50 text-red-800 border-red-200",
+  diseased: "bg-amber-50 text-amber-800 border-amber-200",
   archived: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
@@ -98,7 +113,7 @@ export default function CropsPage() {
       await apiClient.post("/crops", payload);
       setShowModal(false);
       setForm(INITIAL_FORM);
-      setNotice(`Registered crop "${payload.name}" in PostgreSQL.`);
+      setNotice(`Added "${payload.name}" to your farm plots.`);
       await fetchCrops();
     } catch (err) {
       setError(err.message);
@@ -107,12 +122,13 @@ export default function CropsPage() {
     }
   };
 
-  const handleStatusUpdate = async (cropId, newStatus) => {
+  const handleStatusUpdate = async (cropId, newStatus, cropName) => {
     setUpdatingId(cropId);
     setError("");
     try {
       await apiClient.patch(`/crops/${cropId}`, { status: newStatus });
-      setNotice(`Updated crop lifecycle status to "${newStatus}".`);
+      const label = STATUS_LABELS[newStatus] || newStatus;
+      setNotice(`Updated "${cropName}" status to "${label}".`);
       await fetchCrops();
     } catch (err) {
       setError(err.message);
@@ -122,11 +138,13 @@ export default function CropsPage() {
   };
 
   const handleDeleteCrop = async (crop) => {
-    if (!window.confirm(`Delete "${crop.name}"? Linked scans will remain unassigned.`)) return;
+    if (!window.confirm(`Remove "${crop.name}" from your farm plots? Past leaf scans will still be saved.`)) {
+      return;
+    }
     setError("");
     try {
       await apiClient.delete(`/crops/${crop.id}`);
-      setNotice(`Removed "${crop.name}" from active farm records.`);
+      setNotice(`Removed "${crop.name}" from your farm plots.`);
       await fetchCrops();
     } catch (err) {
       setError(err.message);
@@ -136,8 +154,8 @@ export default function CropsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Crop Management"
-        subtitle="Register active farm plots, track planting-to-harvest timelines, and link leaf disease scans"
+        title="Crop & Plot Management"
+        subtitle="Add your farm plots, track planting-to-harvest dates, and link leaf health scans"
         action={
           <button
             type="button"
@@ -145,7 +163,7 @@ export default function CropsPage() {
             className="inline-flex items-center gap-1.5 rounded-xl bg-forest-800 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-forest-900"
           >
             <Plus className="h-4 w-4" />
-            Register Crop Plot
+            Add Crop Plot
           </button>
         }
       />
@@ -158,7 +176,11 @@ export default function CropsPage() {
             <CheckCircle2 className="h-4 w-4 text-emerald-700" />
             {notice}
           </span>
-          <button type="button" onClick={() => setNotice("")} className="text-emerald-700 hover:underline">
+          <button
+            type="button"
+            onClick={() => setNotice("")}
+            className="text-emerald-700 hover:underline"
+          >
             Dismiss
           </button>
         </div>
@@ -173,42 +195,42 @@ export default function CropsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by crop name, variety, or plot location..."
-            className="w-full rounded-xl border border-slate-200 py-2 pl-10 pr-4 text-sm text-slate-800 focus:border-forest-600 focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 py-2 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-forest-600 focus:outline-none"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {["all", "active", "harvested", "diseased", "archived"].map((st) => (
+          {STATUS_TABS.map((tab) => (
             <button
-              key={st}
+              key={tab.value}
               type="button"
-              onClick={() => setStatusFilter(st)}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold capitalize transition ${
-                statusFilter === st
-                  ? "bg-forest-800 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              onClick={() => setStatusFilter(tab.value)}
+              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                statusFilter === tab.value
+                  ? "bg-forest-800 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
               }`}
             >
-              {st}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
 
       {loading ? (
-        <LoadingState message="Loading registered farm crops..." />
+        <LoadingState message="Loading your farm plots..." />
       ) : crops.length === 0 ? (
         <EmptyState
           icon={Sprout}
-          title="No crops registered yet"
-          description="Register your Tomato, Potato, or Bell Pepper plots to track harvest timelines and link disease diagnostics."
+          title="No crop plots added yet"
+          description="Add your Tomato, Potato, or Bell Pepper plots to track harvest dates and link leaf health scans."
           action={
             <button
               type="button"
               onClick={() => setShowModal(true)}
               className="rounded-xl bg-forest-800 px-4 py-2 text-xs font-semibold text-white hover:bg-forest-900"
             >
-              + Add First Crop
+              + Add First Crop Plot
             </button>
           }
         />
@@ -217,40 +239,45 @@ export default function CropsPage() {
           {crops.map((crop) => (
             <div
               key={crop.id}
-              className="flex flex-col justify-between rounded-2xl border border-forest-100 bg-white p-5 shadow-xs transition hover:border-forest-200"
+              className="flex flex-col justify-between rounded-2xl border border-forest-100 bg-white p-5 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-forest-200 hover:shadow-sm"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="inline-block rounded-lg bg-forest-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-forest-800">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-forest-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-forest-800 ring-1 ring-forest-200/60">
+                      <Sprout className="h-3 w-3 text-forest-700" />
                       {crop.crop_category.replace("_", " ")}
                     </span>
-                    <h3 className="mt-2 text-base font-bold text-slate-900">{crop.name}</h3>
+                    <h3 className="mt-2.5 text-base font-bold text-slate-900">{crop.name}</h3>
                     {crop.variety && (
-                      <p className="text-xs font-medium text-slate-500">Variety: {crop.variety}</p>
+                      <p className="mt-0.5 text-xs font-medium text-slate-500">
+                        Variety: <span className="text-slate-700">{crop.variety}</span>
+                      </p>
                     )}
                   </div>
 
                   <span
-                    className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold capitalize ${
+                    className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                       STATUS_STYLES[crop.status] || STATUS_STYLES.active
                     }`}
                   >
-                    {crop.status}
+                    {STATUS_LABELS[crop.status] || crop.status}
                   </span>
                 </div>
 
-                <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                <div className="mt-4 space-y-2 border-t border-slate-100 pt-3.5 text-xs text-slate-600">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5 text-forest-700" />
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-forest-700" />
                     <span>
-                      Planted: <strong>{crop.planting_date}</strong>
-                      {crop.expected_harvest_date ? ` • Harvest: ${crop.expected_harvest_date}` : ""}
+                      Planted: <strong className="text-slate-800">{crop.planting_date}</strong>
+                      {crop.expected_harvest_date
+                        ? ` • Harvest: ${crop.expected_harvest_date}`
+                        : ""}
                     </span>
                   </div>
                   {crop.location_name && (
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-forest-700" />
+                      <MapPin className="h-3.5 w-3.5 shrink-0 text-forest-700" />
                       <span>{crop.location_name}</span>
                     </div>
                   )}
@@ -263,20 +290,20 @@ export default function CropsPage() {
                   aria-label="Update crop status"
                   disabled={updatingId === crop.id}
                   value={crop.status}
-                  onChange={(e) => handleStatusUpdate(crop.id, e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-forest-600 focus:outline-none"
+                  onChange={(e) => handleStatusUpdate(crop.id, e.target.value, crop.name)}
+                  className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-forest-300 focus:border-forest-600 focus:outline-none"
                 >
                   <option value="active">Status: Active</option>
                   <option value="harvested">Status: Harvested</option>
-                  <option value="diseased">Status: Diseased</option>
+                  <option value="diseased">Status: Needs Care</option>
                   <option value="archived">Status: Archived</option>
                 </select>
 
                 <button
                   type="button"
                   onClick={() => handleDeleteCrop(crop)}
-                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                  title="Delete crop"
+                  className="rounded-xl p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                  title="Remove crop plot"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -287,19 +314,26 @@ export default function CropsPage() {
       )}
 
       {total > 0 && (
-        <p className="text-right text-xs text-slate-400">Showing {crops.length} of {total} registered plots</p>
+        <p className="text-right text-xs text-slate-400">
+          Showing {crops.length} of {total} crop {total === 1 ? "plot" : "plots"}
+        </p>
       )}
 
-      {/* Register Crop Modal */}
+      {/* Add Crop Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">Register New Crop Plot</h3>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-forest-100 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Add New Crop Plot</h3>
+                <p className="text-xs text-slate-500">
+                  Track growth timeline and connect leaf scans to this plot
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -307,24 +341,26 @@ export default function CropsPage() {
 
             <form onSubmit={handleCreateCrop} className="mt-4 space-y-4 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-700">Crop / Plot Name *</label>
+                <label className="block text-xs font-bold text-slate-700">
+                  Crop / Plot Name *
+                </label>
                 <input
                   type="text"
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g., Field A - Roma Tomato"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 focus:border-forest-600 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-forest-600 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700">Crop Category *</label>
+                  <label className="block text-xs font-bold text-slate-700">Crop Type *</label>
                   <select
                     value={form.crop_category}
                     onChange={(e) => setForm({ ...form, crop_category: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 focus:border-forest-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-800 focus:border-forest-600 focus:outline-none"
                   >
                     {CATEGORY_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -335,13 +371,15 @@ export default function CropsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700">Variety (Optional)</label>
+                  <label className="block text-xs font-bold text-slate-700">
+                    Variety <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={form.variety}
                     onChange={(e) => setForm({ ...form, variety: e.target.value })}
                     placeholder="e.g., Kufri Jyoti / California Wonder"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 focus:border-forest-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-forest-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -354,29 +392,33 @@ export default function CropsPage() {
                     required
                     value={form.planting_date}
                     onChange={(e) => setForm({ ...form, planting_date: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 focus:border-forest-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-slate-800 focus:border-forest-600 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700">Expected Harvest</label>
+                  <label className="block text-xs font-bold text-slate-700">
+                    Expected Harvest Date
+                  </label>
                   <input
                     type="date"
                     value={form.expected_harvest_date}
                     onChange={(e) => setForm({ ...form, expected_harvest_date: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 focus:border-forest-600 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-slate-800 focus:border-forest-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700">Farm Location Name</label>
+                <label className="block text-xs font-bold text-slate-700">
+                  Field / Farm Location
+                </label>
                 <input
                   type="text"
                   value={form.location_name}
                   onChange={(e) => setForm({ ...form, location_name: e.target.value })}
                   placeholder="e.g., Nashik, Maharashtra"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 focus:border-forest-600 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-forest-600 focus:outline-none"
                 />
               </div>
 
@@ -384,17 +426,17 @@ export default function CropsPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-forest-800 px-5 py-2 text-xs font-semibold text-white hover:bg-forest-900 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-forest-800 px-5 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-forest-900 disabled:opacity-50"
                 >
                   {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Save Crop
+                  Save Crop Plot
                 </button>
               </div>
             </form>

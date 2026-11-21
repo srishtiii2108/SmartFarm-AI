@@ -20,6 +20,11 @@ import { ErrorBanner, PageHeader } from "../components/common/StateViews";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
+function formatConditionLabel(label) {
+  if (!label) return "Unknown";
+  return label.replace(/___/g, " — ").replace(/_/g, " ");
+}
+
 export default function DiseaseDetectionPage() {
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -30,7 +35,7 @@ export default function DiseaseDetectionPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  // Real MobileNetV2 Evaluation Metrics State
+  // Scanner Accuracy Info State
   const [modelInfo, setModelInfo] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
 
@@ -58,11 +63,11 @@ export default function DiseaseDetectionPage() {
 
     if (!file) return;
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError("Unsupported file format. Please upload a JPEG, PNG, or WebP leaf image.");
+      setError("Please upload a JPEG, PNG, or WebP photo of the leaf.");
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError("Image size exceeds 5 MB limit. Please select a smaller image.");
+      setError("Photo is larger than 5 MB. Please choose a smaller image.");
       return;
     }
 
@@ -89,7 +94,7 @@ export default function DiseaseDetectionPage() {
   const handlePredict = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
-      setError("Please select or drop a leaf image before running diagnosis.");
+      setError("Please upload or drop a leaf photo first.");
       return;
     }
 
@@ -120,17 +125,17 @@ export default function DiseaseDetectionPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI Crop Disease Detection"
-        subtitle="MobileNetV2 transfer-learning screening across Tomato, Potato, and Bell Pepper foliage"
+        title="Plant Leaf Health Scanner"
+        subtitle="Upload a clear photo of a Tomato, Potato, or Bell Pepper leaf to check for diseases"
         action={
           evalMetrics && (
             <button
               type="button"
               onClick={() => setShowMetricsModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-forest-200 bg-white px-4 py-2 text-xs font-semibold text-forest-800 shadow-xs transition hover:bg-forest-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:border-forest-300 hover:bg-forest-50/50 hover:text-forest-900"
             >
               <Microscope className="h-4 w-4 text-forest-700" />
-              Model Benchmark ({(evalMetrics.accuracy * 100).toFixed(1)}% Test Acc)
+              Scanner Accuracy ({(evalMetrics.accuracy * 100).toFixed(1)}%)
             </button>
           )
         }
@@ -144,11 +149,16 @@ export default function DiseaseDetectionPage() {
           onSubmit={handlePredict}
           className="space-y-5 rounded-2xl border border-forest-100 bg-white p-6 shadow-xs lg:col-span-5"
         >
-          <div>
-            <label className="block text-sm font-bold text-slate-900">1. Upload Leaf Photograph</label>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Supported: JPEG, PNG, WebP • Max 5 MB • Focus on a single clear leaf
-            </p>
+          <div className="flex items-start gap-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-forest-800 text-xs font-bold text-white">
+              1
+            </span>
+            <div>
+              <label className="block text-sm font-bold text-slate-900">Upload Leaf Photo</label>
+              <p className="mt-0.5 text-xs text-slate-500">
+                JPEG, PNG, or WebP • Up to 5 MB • Focus on one clear leaf
+              </p>
+            </div>
           </div>
 
           {!previewUrl ? (
@@ -156,18 +166,20 @@ export default function DiseaseDetectionPage() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-forest-200 bg-forest-50/40 px-6 py-12 text-center transition hover:border-forest-500 hover:bg-forest-50"
+              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-forest-200 bg-forest-50/40 px-6 py-12 text-center transition duration-200 hover:border-forest-500 hover:bg-forest-50"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-forest-100 text-forest-800">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-forest-100 text-forest-800 ring-1 ring-forest-200/70">
                 <UploadCloud className="h-6 w-6" />
               </div>
               <p className="mt-3 text-sm font-semibold text-slate-800">
                 Click to upload or drag and drop
               </p>
-              <p className="mt-1 text-xs text-slate-500">Tomato, Potato, or Bell Pepper leaf image</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Tomato, Potato, or Bell Pepper leaf image
+              </p>
             </div>
           ) : (
-            <div className="relative overflow-hidden rounded-2xl border border-forest-200 bg-slate-900">
+            <div className="relative overflow-hidden rounded-2xl border border-forest-200 bg-slate-900 shadow-2xs">
               <img
                 src={previewUrl}
                 alt="Selected leaf preview"
@@ -177,16 +189,18 @@ export default function DiseaseDetectionPage() {
                 type="button"
                 onClick={clearSelection}
                 className="absolute right-3 top-3 rounded-full bg-slate-900/80 p-1.5 text-white backdrop-blur-xs transition hover:bg-red-600"
-                title="Remove image"
+                title="Remove photo"
               >
                 <X className="h-4 w-4" />
               </button>
-              <div className="flex items-center justify-between bg-white px-3.5 py-2 text-xs text-slate-600">
+              <div className="flex items-center justify-between border-t border-slate-100 bg-white px-3.5 py-2.5 text-xs text-slate-600">
                 <span className="flex items-center gap-1.5 truncate font-medium">
                   <FileImage className="h-3.5 w-3.5 text-forest-700" />
                   {selectedFile?.name}
                 </span>
-                <span>{(selectedFile?.size / 1024).toFixed(0)} KB</span>
+                <span className="font-medium text-slate-500">
+                  {(selectedFile?.size / 1024).toFixed(0)} KB
+                </span>
               </div>
             </div>
           )}
@@ -199,18 +213,26 @@ export default function DiseaseDetectionPage() {
             className="hidden"
           />
 
-          {/* Optional Crop Association */}
-          <div>
-            <label htmlFor="crop-select" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              2. Link to Registered Crop (Optional)
-            </label>
+          {/* Optional Crop Plot Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-forest-100 text-xs font-bold text-forest-800">
+                2
+              </span>
+              <label
+                htmlFor="crop-select"
+                className="block text-sm font-bold text-slate-900"
+              >
+                Link to Crop Plot <span className="font-normal text-slate-400">(Optional)</span>
+              </label>
+            </div>
             <select
               id="crop-select"
               value={selectedCropId}
               onChange={(e) => setSelectedCropId(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-forest-600 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 transition focus:border-forest-600 focus:outline-none"
             >
-              <option value="">-- Unassigned Quick Scan --</option>
+              <option value="">General Leaf Check (No plot selected)</option>
               {crops.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.crop_category}) {c.location_name ? `• ${c.location_name}` : ""}
@@ -222,42 +244,45 @@ export default function DiseaseDetectionPage() {
           <button
             type="submit"
             disabled={!selectedFile || submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-forest-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-forest-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Analyzing Leaf & Uploading...
+                Checking Leaf Health...
               </>
             ) : (
               <>
                 <ScanLine className="h-4 w-4" />
-                Run Disease Classification
+                Check Leaf Health
               </>
             )}
           </button>
 
-          {/* Scientific Limitation Disclaimer */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
+          {/* Helpful Photo Tip */}
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3.5 text-xs leading-relaxed text-slate-600">
             <div className="flex items-start gap-2">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-forest-700" />
               <p>
-                <strong>Dataset Scope Notice:</strong> Trained on PlantVillage studio leaf imagery (15 classes across Tomato, Potato, and Bell Pepper). Complex field lighting or non-target crops may lower confidence.
+                <strong className="text-slate-800">Photo Tip:</strong> Works best with a single clear
+                Tomato, Potato, or Bell Pepper leaf photographed in bright, natural light against a
+                simple background.
               </p>
             </div>
           </div>
         </form>
 
-        {/* Right Column: Classification Output */}
+        {/* Right Column: Scan Result */}
         <div className="lg:col-span-7">
           {!result ? (
-            <div className="flex h-full min-h-[380px] flex-col items-center justify-center rounded-2xl border border-dashed border-forest-200 bg-white p-8 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-forest-50 text-forest-700">
+            <div className="flex h-full min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-forest-200 bg-white p-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-forest-50 text-forest-700 ring-1 ring-forest-200/70">
                 <Sparkles className="h-7 w-7" />
               </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">Ready for Leaf Diagnostics</h3>
-              <p className="mt-1.5 max-w-md text-sm text-slate-500">
-                Upload a leaf image on the left to inspect MobileNetV2 top-3 probability scores, pathogen metadata, and recommended preventive practices.
+              <h3 className="mt-4 text-base font-bold text-slate-900">Ready to Check Your Leaf</h3>
+              <p className="mt-1.5 max-w-md text-sm leading-relaxed text-slate-500">
+                Upload a leaf photo on the left to see whether your plant is healthy or needs care,
+                along with simple symptoms and treatment steps.
               </p>
             </div>
           ) : (
@@ -284,20 +309,21 @@ export default function DiseaseDetectionPage() {
                       ) : (
                         <AlertTriangle className="h-3.5 w-3.5" />
                       )}
-                      {result.is_healthy ? "Healthy Foliage Detected" : "Disease Stress Identified"}
+                      {result.is_healthy ? "Healthy Leaf" : "Care Needed"}
                     </span>
                     <h2 className="mt-2.5 text-xl font-bold text-slate-900">
-                      {result.predicted_label}
+                      {formatConditionLabel(result.predicted_label)}
                     </h2>
-                    <p className="mt-0.5 text-xs text-slate-600">
-                      Model: <span className="font-semibold">{result.model_version}</span>
-                      {result.crop_name ? ` • Linked Crop: ${result.crop_name}` : ""}
-                    </p>
+                    {result.crop_name && (
+                      <p className="mt-0.5 text-xs font-medium text-slate-600">
+                        Crop Plot: <span className="font-semibold text-slate-800">{result.crop_name}</span>
+                      </p>
+                    )}
                   </div>
 
-                  <div className="rounded-xl bg-white px-4 py-2.5 text-right shadow-2xs">
-                    <span className="block text-[11px] font-semibold uppercase text-slate-400">
-                      Confidence
+                  <div className="rounded-xl border border-slate-100 bg-white px-4 py-2.5 text-right shadow-2xs">
+                    <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                      Match Confidence
                     </span>
                     <span className="text-2xl font-extrabold text-forest-800">
                       {(result.confidence_score * 100).toFixed(1)}%
@@ -306,9 +332,10 @@ export default function DiseaseDetectionPage() {
                 </div>
 
                 {result.low_confidence_warning && (
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-100/80 px-3 py-2 text-xs font-medium text-amber-950">
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-100/90 px-3.5 py-2.5 text-xs font-medium text-amber-950">
                     <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" />
-                    Low confidence (&lt;60%). Retake photo in bright indirect light against a plain background or consult an agronomist.
+                    Unclear photo or low match (&lt;60%). Try taking a closer, sharper photo in
+                    good daylight or ask the Crop Advisor.
                   </div>
                 )}
               </div>
@@ -316,22 +343,25 @@ export default function DiseaseDetectionPage() {
               {/* Top-3 Predictions Breakdown */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Top-3 Class Probability Distribution
+                  Most Likely Matches
                 </h3>
                 <div className="mt-3 space-y-2.5">
                   {result.top_predictions.map((item, idx) => {
                     const pct = (item.confidence * 100).toFixed(1);
                     return (
-                      <div key={item.raw_class} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                      <div
+                        key={item.raw_class}
+                        className="rounded-xl border border-slate-100 bg-slate-50/80 p-3"
+                      >
                         <div className="flex items-center justify-between text-xs font-semibold">
                           <span className="text-slate-800">
-                            #{idx + 1} {item.label}
+                            #{idx + 1} {formatConditionLabel(item.label)}
                           </span>
                           <span className="text-forest-800">{pct}%</span>
                         </div>
-                        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200/80">
                           <div
-                            className={`h-full rounded-full ${
+                            className={`h-full rounded-full transition-all duration-300 ${
                               idx === 0 ? "bg-forest-700" : "bg-slate-400"
                             }`}
                             style={{ width: `${Math.min(100, item.confidence * 100)}%` }}
@@ -343,12 +373,12 @@ export default function DiseaseDetectionPage() {
                 </div>
               </div>
 
-              {/* Agronomic Guidance */}
+              {/* Practical Care Guidance */}
               {result.disease_info && (
-                <div className="space-y-3 rounded-2xl border border-forest-100 bg-forest-50/40 p-4">
+                <div className="space-y-3.5 rounded-2xl border border-forest-100 bg-forest-50/40 p-4">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-forest-800">
-                      Pathogen / Cause
+                      What Causes This
                     </span>
                     <p className="mt-0.5 text-sm font-medium text-slate-800">
                       {result.disease_info.pathogen}
@@ -356,13 +386,15 @@ export default function DiseaseDetectionPage() {
                   </div>
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-forest-800">
-                      Diagnostic Symptoms
+                      Signs to Look For
                     </span>
-                    <p className="mt-0.5 text-sm text-slate-700">{result.disease_info.symptoms}</p>
+                    <p className="mt-0.5 text-sm leading-relaxed text-slate-700">
+                      {result.disease_info.symptoms}
+                    </p>
                   </div>
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-forest-800">
-                      Recommended Preventive Practices
+                      How to Care & Treat
                     </span>
                     <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-slate-700">
                       {result.disease_info.recommended_actions.map((act, i) => (
@@ -374,10 +406,10 @@ export default function DiseaseDetectionPage() {
                   <div className="pt-2">
                     <Link
                       to="/assistant"
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-forest-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-forest-900"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-forest-800 px-4 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-forest-900"
                     >
                       <Bot className="h-3.5 w-3.5" />
-                      Ask AI Farming Assistant About This Condition
+                      Ask Crop Advisor for More Help
                     </Link>
                   </div>
                 </div>
@@ -387,49 +419,49 @@ export default function DiseaseDetectionPage() {
         </div>
       </div>
 
-      {/* Model Evaluation Benchmark Modal */}
+      {/* Scanner Accuracy Modal */}
       {showMetricsModal && evalMetrics && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-forest-100 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  MobileNetV2 Held-Out Test Evaluation
+                  Leaf Scanner Accuracy & Testing
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {datasetInfo?.name} • Evaluated on {datasetInfo?.test_images} unseen test images
+                  Tested across {datasetInfo?.test_images} leaf images ({datasetInfo?.name})
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowMetricsModal(false)}
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-xl bg-forest-50 p-3">
-                <span className="text-[11px] font-semibold text-forest-800">Test Accuracy</span>
+              <div className="rounded-xl border border-forest-100 bg-forest-50 p-3">
+                <span className="text-[11px] font-semibold text-forest-800">Overall Accuracy</span>
                 <p className="mt-1 text-xl font-bold text-slate-900">
                   {(evalMetrics.accuracy * 100).toFixed(2)}%
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <span className="text-[11px] font-semibold text-slate-600">Weighted F1</span>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <span className="text-[11px] font-semibold text-slate-600">F1 Score</span>
                 <p className="mt-1 text-xl font-bold text-slate-900">
                   {evalMetrics.weighted_f1.toFixed(4)}
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <span className="text-[11px] font-semibold text-slate-600">Macro Precision</span>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <span className="text-[11px] font-semibold text-slate-600">Precision</span>
                 <p className="mt-1 text-xl font-bold text-slate-900">
                   {evalMetrics.macro_precision.toFixed(4)}
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <span className="text-[11px] font-semibold text-slate-600">Macro Recall</span>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <span className="text-[11px] font-semibold text-slate-600">Recall</span>
                 <p className="mt-1 text-xl font-bold text-slate-900">
                   {evalMetrics.macro_recall.toFixed(4)}
                 </p>
@@ -438,9 +470,9 @@ export default function DiseaseDetectionPage() {
 
             <div className="mt-5">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Documented Model Limitations
+                Best Practices & Notes
               </h4>
-              <ul className="mt-2 list-disc space-y-1.5 pl-5 text-xs text-slate-600">
+              <ul className="mt-2 list-disc space-y-1.5 pl-5 text-xs leading-relaxed text-slate-600">
                 {(modelInfo?.evaluation?.known_limitations || []).map((lim, idx) => (
                   <li key={idx}>{lim}</li>
                 ))}
